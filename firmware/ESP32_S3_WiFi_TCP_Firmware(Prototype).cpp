@@ -17,12 +17,12 @@
 const char* FUNCTION_URL = "https://asia-southeast1-esp32-iot-demo-temphumi.cloudfunctions.net/ingestBatch";
 
 // ===================== Device identity  =====================
-const char* DEVICE_ID  = "demo_wifi_1";
-const char* DEVICE_KEY = "abc123";
+const char* DEVICE_ID  = "DEVICE_ID";
+const char* DEVICE_KEY = "AUTHORIZATION_KEY"; // abc123
 
 // ===================== WiFi =====================
-const char* WIFI_SSID = "DUY";
-const char* WIFI_PASS = "123456789";
+const char* WIFI_SSID = "<SSID>";
+const char* WIFI_PASS = "<PASSWORD>";
 static const uint32_t WIFI_TIMEOUT_MS = 15000;
 
 // ===================== Sampling / Sleep =====================
