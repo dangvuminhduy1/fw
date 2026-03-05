@@ -1,3 +1,8 @@
+/*
+ * VGU Thesis
+ * Project: ESP32-S3 Firmware (LittleFS + TCP Simulation ) 
+*/
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
