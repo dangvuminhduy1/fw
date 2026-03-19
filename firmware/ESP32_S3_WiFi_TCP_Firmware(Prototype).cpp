@@ -1,6 +1,6 @@
 /*
  * VGU Thesis
- * Project: ESP32-S3 Firmware (LittleFS + TCP Simulation ) 
+ * Project: ESP32-S3 Salinity Sensing Prototype (WiFi + LittleFS Storage + TCP Modbus)
 */
 
 #include <Arduino.h>

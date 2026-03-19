@@ -250,6 +250,34 @@ function toFiniteOrNull(v) {
 }
 
 /**
+ * Helper: only update stats/latest if incoming record is newer
+ * Prevent delayed uploads from overwriting the actual latest reading
+ */
+async function upsertLatestIfNewer(deviceRef, incoming) {
+  const latestRef = deviceRef.collection("stats").doc("latest");
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(latestRef);
+    const prev = snap.exists ? snap.data() : null;
+
+    const prevMeasuredAtSec = Number(prev?.measuredAtSec) || 0;
+    const nextMeasuredAtSec = Number(incoming?.measuredAtSec) || 0;
+
+    if (!snap.exists || nextMeasuredAtSec > prevMeasuredAtSec) {
+      tx.set(
+        latestRef,
+        {
+          ...incoming,
+          measuredAt: Timestamp.fromMillis(nextMeasuredAtSec * 1000),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+  });
+}
+
+/**
  * ============================================================
  * 1) HTTP ingestBatch: ESP32 -> Cloud Function -> Firestore (Prototype)
  * ============================================================
@@ -361,29 +389,24 @@ exports.ingestBatch = onRequest({ region: "asia-southeast1" }, async (req, res) 
     await batch.commit();
 
     if (latest) {
-      await deviceRef.collection("stats").doc("latest").set(
-        {
-          salinity: latest.sal,
-          temperature: latest.temp,
-          ph: latest.ph,
+      await upsertLatestIfNewer(deviceRef, {
+        salinity: latest.sal,
+        temperature: latest.temp,
+        ph: latest.ph,
 
-          rawSalinity: latest.rawSal,
-          rawTemperature: latest.rawTemp,
-          rawPh: latest.rawPh,
+        rawSalinity: latest.rawSal,
+        rawTemperature: latest.rawTemp,
+        rawPh: latest.rawPh,
 
-          batteryPct: latest.battPct,
-          batteryVolt: latest.battVolt,
+        batteryPct: latest.battPct,
+        batteryVolt: latest.battVolt,
 
-          status: latest.status,
-          alerts: latest.alerts,
+        status: latest.status,
+        alerts: latest.alerts,
 
-          measuredAtSec: latest.measuredAtSec,
-          measuredAt: Timestamp.fromMillis(latest.measuredAtSec * 1000),
-          updatedAt: FieldValue.serverTimestamp(),
-          source: "http_ingest",
-        },
-        { merge: true }
-      );
+        measuredAtSec: latest.measuredAtSec,
+        source: "http_ingest",
+      });
     }
 
     for (const [k, a] of agg5m.entries()) await upsertAgg(deviceRef.collection("stats_5m").doc(k), a);
@@ -492,27 +515,21 @@ exports.bridgeNewReadingsToFirestore = onValueCreated(
         { merge: false }
       );
 
-      // update stats/latest
-      await deviceRef.collection("stats").doc("latest").set(
-        {
-          salinity: sal,
-          temperature: temp,
-          ph: ph,
+      // update stats/latest only if this reading is newer
+      await upsertLatestIfNewer(deviceRef, {
+        salinity: sal,
+        temperature: temp,
+        ph: ph,
 
-          batteryPct: battPctSafe,
-          batteryVolt: battVoltSafe,
+        batteryPct: battPctSafe,
+        batteryVolt: battVoltSafe,
 
-          status,
-          alerts,
+        status,
+        alerts,
 
-          measuredAtSec: measuredAtSec,
-          measuredAt: measuredAtTs,
-          updatedAt: FieldValue.serverTimestamp(),
-
-          source: "rtdb_bridge",
-        },
-        { merge: true }
-      );
+        measuredAtSec: measuredAtSec,
+        source: "rtdb_bridge",
+      });
 
       // stats buckets by measuredAtSec
       const b5 = min5Bucket(measuredAtSec);
